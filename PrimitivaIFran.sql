@@ -10,7 +10,7 @@ GO
 
 -- Tabla Sorteos
 CREATE TABLE Sorteos(
-ID SMALLINT IDENTITY(1,1) UNIQUE,
+ID SMALLINT IDENTITY(1,1) UNIQUE,-- primer parametro por donde empieza y el segundo el incremento
 FechaHora  SMALLDATETIME,--FECHA Y HORA FORMRATO
 Abierto BIT NOT NULL, --BOOLENA PARECIDO 0 Y 1
 Num1 TINYINT, -- ocupa menos memoria que el int
@@ -26,7 +26,7 @@ CONSTRAINT PK_Sorteos PRIMARY KEY(ID)
 GO
 -- Tabla Boletos
 CREATE TABLE Boletos(
-ID SMALLINT IDENTITY(1,1) UNIQUE,
+ID SMALLINT IDENTITY(1,1) UNIQUE, 
 FechaHora  SMALLDATETIME,
 Importe MONEY,
 Reintegro TINYINT,
@@ -141,21 +141,24 @@ CREATE PROCEDURE GrabaSencilla
 	,@Num6 TINYINT
 AS
 BEGIN
+
 	DECLARE @ReintregoAleatorio TINYINT =ROUND(((8 - 0) * RAND() + 1), 0)
 	DECLARE @FechaHoraCreacion SMALLDATETIME=GETDATE()
 	DECLARE @ID_Boleto SMALLINT
-		
-	INSERT Boletos values(@FechaHoraCreacion,1,@ReintregoAleatorio,@IDSorteo)
-	SELECT @ID_Boleto=MAX(ID) FROM Boletos WHERE ID_Sorteo=@IDSorteo
+	BEGIN TRANSACTION	
+		INSERT Boletos values(@FechaHoraCreacion,1,@ReintregoAleatorio,@IDSorteo)
+		SELECT @ID_Boleto=MAX(ID) FROM Boletos WHERE ID_Sorteo=@IDSorteo
 
-	INSERT Combinaciones values( 1,@Num1,'Simple', @ID_Boleto)
-	INSERT Combinaciones values( 1,@Num2,'Simple', @ID_Boleto)
-	INSERT Combinaciones values( 1,@Num3,'Simple', @ID_Boleto)
-	INSERT Combinaciones values( 1,@Num4,'Simple', @ID_Boleto)
-	INSERT Combinaciones values( 1,@Num5,'Simple', @ID_Boleto)
-	INSERT Combinaciones values( 1,@Num6,'Simple', @ID_Boleto)
+		INSERT Combinaciones values( 1,@Num1,'Simple', @ID_Boleto)
+		INSERT Combinaciones values( 1,@Num2,'Simple', @ID_Boleto)
+		INSERT Combinaciones values( 1,@Num3,'Simple', @ID_Boleto)
+		INSERT Combinaciones values( 1,@Num4,'Simple', @ID_Boleto)
+		INSERT Combinaciones values( 1,@Num5,'Simple', @ID_Boleto)
+		INSERT Combinaciones values( 1,@Num6,'Simple', @ID_Boleto)
+	
 	COMMIT
 END
+
 
 GO
 CREATE PROCEDURE GrabaSencilla2
@@ -175,24 +178,25 @@ BEGIN
 	INSERT Boletos values(@FechaHoraCreacion,1,@ReintregoAleatorio,@IDSorteo)
 	SELECT @ID_Boleto=MAX(ID) FROM Boletos WHERE ID_Sorteo=@IDSorteo
 	BEGIN TRANSACTION
-	BEGIN TRY 
-		INSERT Combinaciones values( 1,@Num1,'Simple', @ID_Boleto)
-		INSERT Combinaciones values( 1,@Num2,'Simple', @ID_Boleto)
-		INSERT Combinaciones values( 1,@Num3,'Simple', @ID_Boleto)
-		INSERT Combinaciones values( 1,@Num4,'Simple', @ID_Boleto)
-		INSERT Combinaciones values( 1,@Num5,'Simple', @ID_Boleto)
-		INSERT Combinaciones values( 1,@Num6,'Simple', @ID_Boleto)
-	END TRY
-	BEGIN CATCH
-		IF(@@TRANCOUNT>0)
-		BEGIN
-			COMMIT
-		END
-		ELSE
-		BEGIN
-			ROLLBACK
-		END
-	END CATCH
+		BEGIN TRY 
+			INSERT Combinaciones values( 1,@Num1,'Simple', @ID_Boleto)
+			INSERT Combinaciones values( 1,@Num2,'Simple', @ID_Boleto)
+			INSERT Combinaciones values( 1,@Num3,'Simple', @ID_Boleto)
+			INSERT Combinaciones values( 1,@Num4,'Simple', @ID_Boleto)
+			INSERT Combinaciones values( 1,@Num5,'Simple', @ID_Boleto)
+			INSERT Combinaciones values( 1,@Num6,'Simple', @ID_Boleto)
+		END TRY
+		BEGIN CATCH
+			IF(@@TRANCOUNT>0)
+			BEGIN
+				COMMIT
+			END
+			ELSE
+			BEGIN
+				ROLLBACK
+			END
+		END CATCH
+	END
 
 END
 
@@ -209,8 +213,8 @@ select * from Combinaciones
 -- Entradas: un entero que es el ID del sorteo y otro entero que es el Nº de apuestas a grabar
 --AQUI
 GO
---CREATE PROCEDURE GrabaSencillaAleatoria
-ALTER PROCEDURE GrabaSencillaAleatoria
+--CREATE PROCEDURE GrabaSencillaAleatoria 
+CREATE PROCEDURE GrabaSencillaAleatorias--Mecla de lo dos
 	@IDSorteo SMALLINT
 	,@NumApuesta TINYINT
 AS
@@ -221,27 +225,193 @@ BEGIN
 	DECLARE @Num4 TINYINT
 	DECLARE @Num5 TINYINT
 	DECLARE @Num6 TINYINT
-	DECLARE @Sigue BIT
+	DECLARE @Sigue BIT 
 	
 	WHILE(@NumApuesta>0)
 	BEGIN
-	
+		SET @Sigue=0
 		SET @Num1 =ROUND(((49 - 1) * RAND() + 1), 0)
-		SET @Num2 =ROUND(((49 - 1) * RAND() + 1), 0)
-		SET @Num3 =ROUND(((49 - 1) * RAND() + 1), 0)
-		SET @Num4 =ROUND(((49 - 1) * RAND() + 1), 0)
-		SET @Num5 =ROUND(((49 - 1) * RAND() + 1), 0)
-		SET @Num6 =ROUND(((49 - 1) * RAND() + 1), 0)
+		
+		--SET @Num3 =ROUND(((49 - 1) * RAND() + 1), 0)
+		--SET @Num4 =ROUND(((49 - 1) * RAND() + 1), 0)
+		--SET @Num5 =ROUND(((49 - 1) * RAND() + 1), 0)
+		--SET @Num6 =ROUND(((49 - 1) * RAND() + 1), 0)
+		WHILE(@Sigue=0)
+		BEGIN
+			SET @Num2 =ROUND(((49 - 1) * RAND() + 1), 0)
+			IF(@Num2 != @Num1)
+			BEGIN 
+				 SET @Sigue=1
+			END
+		END
+		SET @Sigue=0
+
+		WHILE(@Sigue=0)
+		BEGIN
+			SET @Num3 =ROUND(((49 - 1) * RAND() + 1), 0)
+			IF(@Num3 != @Num1 AND @Num3 != @Num2 )
+			BEGIN 
+				 SET @Sigue=1
+			END
+		END
+		SET @Sigue=0
+
+		WHILE(@Sigue=0)
+		BEGIN
+			SET @Num4 =ROUND(((49 - 1) * RAND() + 1), 0)
+			IF(@Num4 != @Num1 AND @Num4 != @Num2 AND @Num4 != @Num3 )
+			BEGIN 
+				 SET @Sigue=1
+			END
+		END
+		SET @Sigue=0
+
+		WHILE(@Sigue=0)
+		BEGIN
+			SET @Num5 =ROUND(((49 - 1) * RAND() + 1), 0)
+			IF(@Num5 != @Num1 AND @Num5 != @Num2 AND @Num5 != @Num3  AND @Num5 != @Num4)
+			BEGIN 
+				 SET @Sigue=1
+			END
+		END
+		SET @Sigue=0
+
+		WHILE(@Sigue=0)
+		BEGIN
+			SET @Num6 =ROUND(((49 - 1) * RAND() + 1), 0)
+			IF(@Num6 != @Num1 AND @Num6 != @Num2 AND @Num6 != @Num3  AND @Num6 != @Num4 AND @Num6 != @Num5)
+			BEGIN 
+				 SET @Sigue=1
+			END
+		END
 		
 		
-		
-		
-		--EXEC dbo.GrabaSencilla @IDSorteo, @Num1, @Num2, @Num3, @Num4, @Num5, @Num6
+		EXEC dbo.GrabaSencilla @IDSorteo, @Num1, @Num2, @Num3, @Num4, @Num5, @Num6
 		SET @NumApuesta-=1
 	END
 END
+GO
+GO
+
+--CREATE PROCEDURE GrabaSencillaAleatoria
+CREATE PROCEDURE GrabaSencillaAleatoria
+	@IDSorteo SMALLINT
+	,@NumApuesta TINYINT
+AS
+BEGIN
+	DECLARE @Num1 TINYINT
+	DECLARE @Num2 TINYINT
+	DECLARE @Num3 TINYINT
+	DECLARE @Num4 TINYINT
+	DECLARE @Num5 TINYINT
+	DECLARE @Num6 TINYINT
+	DECLARE @Sigue BIT 
+	DECLARE @ReintregoAleatorio TINYINT =ROUND(((8 - 0) * RAND() + 1), 0)
+	DECLARE @FechaHoraCreacion SMALLDATETIME=GETDATE()
+	DECLARE @ID_Boleto SMALLINT
+	DECLARE @Contador TINYINT =1
+	--Comprobar el numero de columna
+	BEGIN TRANSACTION	
+		INSERT Boletos values(@FechaHoraCreacion,1,@ReintregoAleatorio,@IDSorteo)
+		SELECT @ID_Boleto=MAX(ID) FROM Boletos WHERE ID_Sorteo=@IDSorteo
+
+		WHILE(@NumApuesta>0)
+		BEGIN
+			SET @Sigue=0
+			SET @Num1 =ROUND(((49 - 1) * RAND() + 1), 0)
+			WHILE(@Sigue=0)
+			BEGIN
+				SET @Num2 =ROUND(((49 - 1) * RAND() + 1), 0)
+				IF(@Num2 != @Num1)
+				BEGIN 
+					 SET @Sigue=1
+				END
+			END
+			SET @Sigue=0
+
+			WHILE(@Sigue=0)
+			BEGIN
+				SET @Num3 =ROUND(((49 - 1) * RAND() + 1), 0)
+				IF(@Num3 != @Num1 AND @Num3 != @Num2 )
+				BEGIN 
+					 SET @Sigue=1
+				END
+			END
+			SET @Sigue=0
+
+			WHILE(@Sigue=0)
+			BEGIN
+				SET @Num4 =ROUND(((49 - 1) * RAND() + 1), 0)
+				IF(@Num4 != @Num1 AND @Num4 != @Num2 AND @Num4 != @Num3 )
+				BEGIN 
+					 SET @Sigue=1
+				END
+			END
+			SET @Sigue=0
+
+			WHILE(@Sigue=0)
+			BEGIN
+				SET @Num5 =ROUND(((49 - 1) * RAND() + 1), 0)
+				IF(@Num5 != @Num1 AND @Num5 != @Num2 AND @Num5 != @Num3  AND @Num5 != @Num4)
+				BEGIN 
+					 SET @Sigue=1
+				END
+			END
+			SET @Sigue=0
+
+			WHILE(@Sigue=0)
+			BEGIN
+				SET @Num6 =ROUND(((49 - 1) * RAND() + 1), 0)
+				IF(@Num6 != @Num1 AND @Num6 != @Num2 AND @Num6 != @Num3  AND @Num6 != @Num4 AND @Num6 != @Num5)
+				BEGIN 
+					 SET @Sigue=1
+				END
+			END
+			INSERT Combinaciones values( @Contador,@Num1,'Simple', @ID_Boleto)
+			INSERT Combinaciones values( @Contador,@Num2,'Simple', @ID_Boleto)
+			INSERT Combinaciones values( @Contador,@Num3,'Simple', @ID_Boleto)
+			INSERT Combinaciones values( @Contador,@Num4,'Simple', @ID_Boleto)
+			INSERT Combinaciones values( @Contador,@Num5,'Simple', @ID_Boleto)
+			INSERT Combinaciones values( @Contador,@Num6,'Simple', @ID_Boleto)
+		
+			SET @Contador+=1
+			SET @NumApuesta-=1
+		END
+	COMMIT
+END
+GO
 
 
-EXEC dbo.GrabaSencillaAleatoria 10, 4
+EXEC dbo.GrabaSencillaAleatorias 3, 2
+select * from Sorteos
 select * from Boletos
-select * from Combinaciones
+select * from Combinaciones order by ID_Boleto
+DELETE FROM [dbo].[Boletos]
+DELETE FROM [dbo].[Combinaciones] 
+EXEC dbo.GrabaSencillaAleatoria 3, 2  
+                         --Procedimiento
+--Implementa un procedimiento GrabaMuchasSencillas que genere n 
+--boletos con una sola apuesta sencilla utilizando el procedimiento 
+--GrabaSencillaAleatoria. Datos de entrada: El sorteo y el valor de n
+GO
+CREATE PROCEDURE GrabaMuchasSencillas
+	@IDSorteo SMALLINT
+	,@NumBoletos TINYINT
+AS
+BEGIN	
+--me falta el commit
+	WHILE(@NumBoletos>0)
+		BEGIN
+		EXEC dbo.GrabaSencillaAleatoria @IDSorteo, 1
+		SET @NumBoletos-=1
+	END
+END
+GO
+EXEC dbo.GrabaMuchasSencillas 3, 2  
+select * from Sorteos
+select * from Boletos
+select * from Combinaciones order by ID_Boleto
+DELETE FROM [dbo].[Boletos]
+DELETE FROM [dbo].[Combinaciones]
+
+ 

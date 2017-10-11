@@ -149,7 +149,7 @@ INSERT INTO [dbo].[Boletos]
            ,8)
 GO
 --Procedimiento--
-EXEC dbo.GrabaSencilla 9, 14, 15, 28, 6, 42, 33
+EXEC dbo.GrabaSencilla 2, 14, 15, 28, 6, 42, 4
 EXEC dbo.GrabaSencillaAleatoria 3, 2
 EXEC dbo.GrabaMuchasSencillas 3, 2 
 EXEC GrabaMultiple 2,5,6,7,8,9
@@ -163,3 +163,4 @@ DELETE FROM [dbo].[Boletos]
 DELETE FROM [dbo].[Combinaciones]  
 
 SET DATEFORMAT ymd --formato de la fecha
+

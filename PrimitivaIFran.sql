@@ -95,7 +95,7 @@ GO
 --	Implementa un procedimiento almacenado GrabaSencilla que grabe
 -- un boleto con una sola apuesta simple. Datos de entrada: El sorteo y los seis números
 GO
-CREATE PROCEDURE GrabaSencilla
+ALter PROCEDURE GrabaSencilla
 	@IDSorteo SMALLINT
 	,@Num1 TINYINT
 	,@Num2 TINYINT
@@ -108,7 +108,7 @@ BEGIN
 	DECLARE @ReintregoAleatorio TINYINT =ROUND(((8 - 0) * RAND() + 1), 0)
 	DECLARE @FechaHoraCreacion SMALLDATETIME=GETDATE()
 	DECLARE @ID_Boleto SMALLINT
-	BEGIN TRANSACTION
+		BEGIN TRANSACTION
 		BEGIN TRY 
 			INSERT Boletos values(@FechaHoraCreacion,1,@ReintregoAleatorio,@IDSorteo)
 			SELECT @ID_Boleto=MAX(ID) FROM Boletos WHERE ID_Sorteo=@IDSorteo
@@ -118,19 +118,13 @@ BEGIN
 										( 1,@Num4,'Simple', @ID_Boleto),
 										( 1,@Num5,'Simple', @ID_Boleto),
 										( 1,@Num6,'Simple', @ID_Boleto)
+										COMMIT
 		END TRY
 		BEGIN CATCH
-			IF(@@TRANCOUNT>0)
-			BEGIN
-				COMMIT
-			END
-			ELSE
-			BEGIN
 				ROLLBACK
-			END
 		END CATCH
+	
 END
-
 GO								--Procedimiento--
 --	Implementa un procedimiento GrabaSencillaAleatoria que genere 
 -- un boleto con n apuestas sencillas, cuyos números se generarán de forma aleatoria.					

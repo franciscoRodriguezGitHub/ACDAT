@@ -143,24 +143,34 @@ INSERT INTO [dbo].[Boletos]
            ,[Reintegro]
            ,[ID_Sorteo])
      VALUES
-            ('2017-12-20 16:30:00'
+            ('2017-12-20 18:30:00'
            ,1
            ,8
-           ,8)
+           ,2)
 GO
 --Procedimiento--
-EXEC dbo.GrabaSencilla 2, 14, 15, 28, 6, 42, 4
-EXEC dbo.GrabaSencillaAleatoria 3, 2
-EXEC dbo.GrabaMuchasSencillas 3, 2 
-EXEC GrabaMultiple 2,5,6,7,8,9
+EXEC dbo.GrabaSencilla 1, 14, 15, 28, 6, 42, 6
+EXEC dbo.GrabaSencillaAleatoria 1, 9
+EXEC dbo.GrabaMuchasSencillas 1, 2 
+EXEC GrabaMultiple 1,1,2,3,4,5
 
 select * from Sorteos
 Select * from Boletos
-Select * from Combinaciones
+Select * from Combinaciones order by ID_Boleto
+
+DELETE FROM [dbo].[Combinaciones]  
+DELETE FROM [dbo].[Boletos]
+
+BEGIN TRANSACTION
+EXECUTE dbo.GrabaMuchasSencillas 2,100000
+EXECUTE dbo.GrabaMuchasSencillas 1,10000
+ROLLBACK
+COMMIT
+
 
 DELETE FROM [dbo].[Sorteos]
-DELETE FROM [dbo].[Boletos]
-DELETE FROM [dbo].[Combinaciones]  
+
+
 
 SET DATEFORMAT ymd --formato de la fecha
 

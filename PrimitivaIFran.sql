@@ -9,7 +9,7 @@ GO
 
 -- Tabla Sorteos
 CREATE TABLE Sorteos(
-ID SMALLINT IDENTITY(1,1) UNIQUE,-- primer parametro por donde empieza y el segundo el incremento
+ID INT IDENTITY(1,1) UNIQUE,-- primer parametro por donde empieza y el segundo el incremento
 FechaHora  SMALLDATETIME,--FECHA Y HORA FORMRATO
 Abierto BIT NOT NULL, --BOOLENA PARECIDO 0 Y 1
 Num1 TINYINT, -- ocupa menos memoria que el int
@@ -25,12 +25,12 @@ CONSTRAINT PK_Sorteos PRIMARY KEY(ID)
 GO
 -- Tabla Boletos
 CREATE TABLE Boletos(
-ID SMALLINT IDENTITY(1,1) UNIQUE, 
+ID INT IDENTITY(1,1) UNIQUE, 
 FechaHora  SMALLDATETIME,
 Importe MONEY,
 Reintegro TINYINT,
 CONSTRAINT PK_Boletos PRIMARY KEY(ID),
-ID_Sorteo SMALLINT CONSTRAINT FK_Boletos_Sorteos FOREIGN KEY REFERENCES Sorteos(ID) ON UPDATE NO ACTION /*CASCADE NO PORQUE SI NO NO PUEDO HACER EL INSTEAD OF*/ ON DELETE NO ACTION
+ID_Sorteo INT CONSTRAINT FK_Boletos_Sorteos FOREIGN KEY REFERENCES Sorteos(ID) ON UPDATE NO ACTION /*CASCADE NO PORQUE SI NO NO PUEDO HACER EL INSTEAD OF*/ ON DELETE NO ACTION
 )
 GO
 -- Tabla Combinaciones
@@ -39,7 +39,7 @@ Columna SMALLINT,
 Numero  SMALLINT,
 Tipo NVARCHAR(15) not null,
 CONSTRAINT PK_Combinaciones PRIMARY KEY(Columna,Numero,ID_Boleto),
-ID_Boleto SMALLINT CONSTRAINT FK_Combinaciones_Boletos FOREIGN KEY REFERENCES Boletos(ID) ON UPDATE NO ACTION ON DELETE NO ACTION
+ID_Boleto INT CONSTRAINT FK_Combinaciones_Boletos FOREIGN KEY REFERENCES Boletos(ID) ON UPDATE NO ACTION ON DELETE NO ACTION
 )
 GO
 
@@ -51,11 +51,11 @@ BEGIN TRANSACTION
 	Num3 BETWEEN 1 AND 49 AND Num4 BETWEEN 1 AND 49 AND Num5 BETWEEN 1 AND 49 AND 
 	Num6 BETWEEN 1 AND 49 AND Complementario BETWEEN 1 AND 49 )
 	--Reintegro del 0 al 8
-	ALTER TABLE Sorteos ADD CONSTRAINT CK_Num0y8 CHECK (Reintegro BETWEEN 0 AND 8)
+	ALTER TABLE Sorteos ADD CONSTRAINT CK_Num0y8 CHECK (Reintegro BETWEEN 0 AND 9)
 	--Números del 1 al 49
 	ALTER TABLE Combinaciones ADD CONSTRAINT CK_NumCombinaciones1y49 CHECK (Numero BETWEEN 1 AND 49)
 	--Reintegro del 0 al 8
-	ALTER TABLE Boletos ADD CONSTRAINT CK_Num0y8Boletos CHECK (Reintegro BETWEEN 0 AND 8)
+	ALTER TABLE Boletos ADD CONSTRAINT CK_Num0y8Boletos CHECK (Reintegro BETWEEN 0 AND 9)
 	--Columna del 1 al 8
 	ALTER TABLE Combinaciones ADD CONSTRAINT CK_Columna_1a8 CHECK (Columna BETWEEN 1 AND 8)
 	--Columna tipo de la tabla combinación sólo admite los valores Simple o Múltiple
@@ -95,8 +95,8 @@ GO
 --	Implementa un procedimiento almacenado GrabaSencilla que grabe
 -- un boleto con una sola apuesta simple. Datos de entrada: El sorteo y los seis números
 GO
-ALter PROCEDURE GrabaSencilla
-	@IDSorteo SMALLINT
+CREATE PROCEDURE GrabaSencilla
+	@IDSorteo INT
 	,@Num1 TINYINT
 	,@Num2 TINYINT
 	,@Num3 TINYINT
@@ -105,9 +105,9 @@ ALter PROCEDURE GrabaSencilla
 	,@Num6 TINYINT
 AS
 BEGIN
-	DECLARE @ReintregoAleatorio TINYINT =ROUND(((8 - 0) * RAND() + 1), 0)
+	DECLARE @ReintregoAleatorio TINYINT =FLOOR(((10) * RAND()))
 	DECLARE @FechaHoraCreacion SMALLDATETIME=GETDATE()
-	DECLARE @ID_Boleto SMALLINT
+	DECLARE @ID_Boleto INT
 		BEGIN TRANSACTION
 		BEGIN TRY 
 			INSERT Boletos values(@FechaHoraCreacion,1,@ReintregoAleatorio,@IDSorteo)
@@ -129,8 +129,8 @@ GO								--Procedimiento--
 --	Implementa un procedimiento GrabaSencillaAleatoria que genere 
 -- un boleto con n apuestas sencillas, cuyos números se generarán de forma aleatoria.					
 CREATE PROCEDURE GrabaSencillaAleatoria
-	@IDSorteo SMALLINT
-	,@NumApuesta TINYINT
+	@IDSorteo INT
+	,@NumApuesta INT
 AS
 BEGIN
 	DECLARE @Num1 TINYINT
@@ -140,83 +140,88 @@ BEGIN
 	DECLARE @Num5 TINYINT
 	DECLARE @Num6 TINYINT
 	DECLARE @Sigue BIT 
-	DECLARE @ReintregoAleatorio TINYINT =ROUND(((8 - 0) * RAND() + 1), 0)
+	DECLARE @ReintregoAleatorio TINYINT =FLOOR(((10) * RAND()))
 	DECLARE @FechaHoraCreacion SMALLDATETIME=GETDATE()
-	DECLARE @ID_Boleto SMALLINT
+	DECLARE @ID_Boleto INT
 	DECLARE @Contador TINYINT =1
 	IF((@NumApuesta >=1) AND (@NumApuesta <=8))
 	BEGIN
-		BEGIN TRANSACTION	
-			INSERT Boletos values(@FechaHoraCreacion,1,@ReintregoAleatorio,@IDSorteo)
-			SELECT @ID_Boleto=MAX(ID) FROM Boletos WHERE ID_Sorteo=@IDSorteo
+		BEGIN TRANSACTION
+			BEGIN TRY 
+				INSERT Boletos values(@FechaHoraCreacion,1,@ReintregoAleatorio,@IDSorteo)
+				SELECT @ID_Boleto=MAX(ID) FROM Boletos WHERE ID_Sorteo=@IDSorteo
 
-			WHILE(@NumApuesta>0)
-			BEGIN
-				SET @Sigue=0
-				SET @Num1 =ROUND(((49 - 1) * RAND() + 1), 0)
-				WHILE(@Sigue=0)
+				WHILE(@NumApuesta>0)
 				BEGIN
-					SET @Num2 =ROUND(((49 - 1) * RAND() + 1), 0)
-					IF(@Num2 != @Num1)
-					BEGIN 
-						 SET @Sigue=1
+					SET @Sigue=0
+					SET @Num1 =ROUND(((49 - 1) * RAND() + 1), 0)
+					WHILE(@Sigue=0)
+					BEGIN
+						SET @Num2 =ROUND(((49 - 1) * RAND() + 1), 0)
+						IF(@Num2 != @Num1)
+						BEGIN 
+							 SET @Sigue=1
+						END
 					END
-				END
-				SET @Sigue=0
+					SET @Sigue=0
 
-				WHILE(@Sigue=0)
-				BEGIN
-					SET @Num3 =ROUND(((49 - 1) * RAND() + 1), 0)
-					IF(@Num3 != @Num1 AND @Num3 != @Num2 )
-					BEGIN 
-						 SET @Sigue=1
+					WHILE(@Sigue=0)
+					BEGIN
+						SET @Num3 =ROUND(((49 - 1) * RAND() + 1), 0)
+						IF(@Num3 != @Num1 AND @Num3 != @Num2 )
+						BEGIN 
+							 SET @Sigue=1
+						END
 					END
-				END
-				SET @Sigue=0
+					SET @Sigue=0
 
-				WHILE(@Sigue=0)
-				BEGIN
-					SET @Num4 =ROUND(((49 - 1) * RAND() + 1), 0)
-					IF(@Num4 != @Num1 AND @Num4 != @Num2 AND @Num4 != @Num3 )
-					BEGIN 
-						 SET @Sigue=1
+					WHILE(@Sigue=0)
+					BEGIN
+						SET @Num4 =ROUND(((49 - 1) * RAND() + 1), 0)
+						IF(@Num4 != @Num1 AND @Num4 != @Num2 AND @Num4 != @Num3 )
+						BEGIN 
+							 SET @Sigue=1
+						END
 					END
-				END
-				SET @Sigue=0
+					SET @Sigue=0
 
-				WHILE(@Sigue=0)
-				BEGIN
-					SET @Num5 =ROUND(((49 - 1) * RAND() + 1), 0)
-					IF(@Num5 != @Num1 AND @Num5 != @Num2 AND @Num5 != @Num3  AND @Num5 != @Num4)
-					BEGIN 
-						 SET @Sigue=1
+					WHILE(@Sigue=0)
+					BEGIN
+						SET @Num5 =ROUND(((49 - 1) * RAND() + 1), 0)
+						IF(@Num5 != @Num1 AND @Num5 != @Num2 AND @Num5 != @Num3  AND @Num5 != @Num4)
+						BEGIN 
+							 SET @Sigue=1
+						END
 					END
-				END
-				SET @Sigue=0
+					SET @Sigue=0
 
-				WHILE(@Sigue=0)
-				BEGIN
-					SET @Num6 =ROUND(((49 - 1) * RAND() + 1), 0)
-					IF(@Num6 != @Num1 AND @Num6 != @Num2 AND @Num6 != @Num3  AND @Num6 != @Num4 AND @Num6 != @Num5)
-					BEGIN 
-						 SET @Sigue=1
+					WHILE(@Sigue=0)
+					BEGIN
+						SET @Num6 =ROUND(((49 - 1) * RAND() + 1), 0)
+						IF(@Num6 != @Num1 AND @Num6 != @Num2 AND @Num6 != @Num3  AND @Num6 != @Num4 AND @Num6 != @Num5)
+						BEGIN 
+							 SET @Sigue=1
+						END
 					END
+					INSERT Combinaciones values( @Contador,@Num1,'Simple', @ID_Boleto),
+										( @Contador,@Num2,'Simple', @ID_Boleto),
+										( @Contador,@Num3,'Simple', @ID_Boleto),
+										( @Contador,@Num4,'Simple', @ID_Boleto),
+										( @Contador,@Num5,'Simple', @ID_Boleto),
+										( @Contador,@Num6,'Simple', @ID_Boleto)
+											
+					SET @Contador+=1
+					SET @NumApuesta-=1
 				END
-				INSERT Combinaciones values( @Contador,@Num1,'Simple', @ID_Boleto)
-				INSERT Combinaciones values( @Contador,@Num2,'Simple', @ID_Boleto)
-				INSERT Combinaciones values( @Contador,@Num3,'Simple', @ID_Boleto)
-				INSERT Combinaciones values( @Contador,@Num4,'Simple', @ID_Boleto)
-				INSERT Combinaciones values( @Contador,@Num5,'Simple', @ID_Boleto)
-				INSERT Combinaciones values( @Contador,@Num6,'Simple', @ID_Boleto)
-			
-				SET @Contador+=1
-				SET @NumApuesta-=1
-			END
-		COMMIT
+			COMMIT	
+			END TRY
+			BEGIN CATCH
+					ROLLBACK
+			END CATCH	
 	END
 	ELSE
-	BEGIN
-	PRINT 'Numero de apuesta entre el 1 y el 8'
+		BEGIN
+		PRINT 'Numero de apuesta entre el 1 y el 8'
 	END
 END
 GO 
@@ -226,8 +231,8 @@ GO
 --GrabaSencillaAleatoria. Datos de entrada: El sorteo y el valor de n
 GO
 CREATE PROCEDURE GrabaMuchasSencillas
-	@IDSorteo SMALLINT
-	,@NumBoletos TINYINT
+	@IDSorteo INT
+	,@NumBoletos INT
 AS
 BEGIN	
 	WHILE(@NumBoletos>0)
@@ -241,7 +246,7 @@ GO
 --Implementa un procedimiento almacenado GrabaMultiple que grabe una
 --apuesta múltiple. Datos de entrada: El sorteo y entre 5 y 11 números
 CREATE PROCEDURE GrabaMultiple
-	@IDSorteo SMALLINT
+	@IDSorteo INT
 	,@Num1 TINYINT 
 	,@Num2 TINYINT 
 	,@Num3 TINYINT
@@ -255,24 +260,26 @@ CREATE PROCEDURE GrabaMultiple
 	,@Num11 TINYINT = NULL
 AS
 BEGIN
+
 	DECLARE @ReintregoAleatorio TINYINT =floor(((10) * RAND()))
 	DECLARE @FechaHoraCreacion SMALLDATETIME=GETDATE()
-	DECLARE @ID_Boleto SMALLINT
- 
+	DECLARE @ID_Boleto INT
+	BEGIN TRANSACTION
+		BEGIN TRY 
+		
 		INSERT Boletos values(@FechaHoraCreacion,1,@ReintregoAleatorio,@IDSorteo)
 		SELECT @ID_Boleto=MAX(ID) FROM Boletos WHERE ID_Sorteo=@IDSorteo
-		--Begun...
 		INSERT Combinaciones values( 1,@Num1,'Multiple', @ID_Boleto),
 										( 1,@Num2,'Multiple', @ID_Boleto),
 										( 1,@Num3,'Multiple', @ID_Boleto),
 										( 1,@Num4,'Multiple', @ID_Boleto),
 										( 1,@Num5,'Multiple', @ID_Boleto)
-										
+									
+																		
 		IF((@Num6 IS NOT NULL) AND (@Num7 IS  NULL))
 		BEGIN
-			
-			ROLLBACK
-			
+			Delete from Combinaciones where ID_Boleto=@ID_Boleto
+			Delete from Boletos where ID=@ID_Boleto	 	
 		END
 		ELSE IF((@Num7 IS NOT NULL) AND(@Num6 IS NOT NULL))
 		BEGIN
@@ -294,30 +301,53 @@ BEGIN
 					END					
 				END
 			END
-		END
+		END		
+		COMMIT	
+		END TRY
+		BEGIN CATCH
+				ROLLBACK
+		END CATCH
 END
 
 GO
 									--Restricciones--
 --Las apuestas sencillas tienen seis números							
-CREATE TRIGGER ApuestaSencillaComprobrar ON Combinaciones
-	AFTER INSERT AS
+CREATE TRIGGER  CompruebaSencilla ON Combinaciones
+AFTER INSERT AS
+BEGIN
+	DECLARE @ID_Boleto INT
+	DECLARE @cantColumna INT
+	DECLARE @cont INT=1
+	SET @cantColumna=0
+
+	--consulta para conseguir el último boleto insertado
+	SELECT @ID_Boleto=B.ID FROM inserted AS I inner join
+	Boletos AS B ON I.ID_Boleto=B.ID
+
+	--consulta para conseguir la cantidad de columnas insertadas en ese boleto
+	SELECT @cantColumna=COUNT(DISTINCT Columna) FROM Combinaciones WHERE ID_Boleto=@ID_Boleto
+
+	WHILE(@cont<=@cantColumna)
 	BEGIN
-	DECLARE @IDBoleto SMALLINT
-	DECLARE @ContLinea TINYINT
-	DECLARE @Columna SMALLINT
-	SELECT @IDBoleto=ID_Boleto,@Columna=Columna FROM inserted
-	
-	SELECT @ContLinea=COUNT(ID_Boleto) FROM Combinaciones
-			 WHERE ID_Boleto=@IDBoleto AND Columna=@Columna AND Tipo='Simple'
-	IF(@ContLinea>6)
-	BEGIN
-		
-		ROLLBACK
+		if('Simple'=ANY(SELECT Tipo FROM Combinaciones WHERE ID_Boleto=@ID_Boleto and Columna=@cont))--Si cualquier de las Columnas es simple pasamos a la siguiente comprobación
+		BEGIN
+			if(((SELECT count(numero) FROM Combinaciones WHERE ID_Boleto=@ID_Boleto and Columna=@cont)!=6) OR--Si la cantidad de numeros que contiene la columna
+				('Multiple'=ANY(SELECT Tipo FROM Combinaciones WHERE ID_Boleto=@ID_Boleto and Columna=@cont)))--es distinto de 6 o cualquier columna es Multiple
+				
+			BEGIN																						    
+				ROLLBACK
+				DELETE FROM Boletos WHERE ID=@ID_Boleto
+			END
+		END
+		ELSE IF(((SELECT COUNT(Numero) FROM Combinaciones WHERE ID_Boleto=@ID_Boleto and Columna=@cont)=6) AND 
+				('Multiple'=ALL(SELECT Tipo FROM Combinaciones WHERE ID_Boleto=@ID_Boleto and Columna=@cont)))
+		BEGIN 
+			BEGIN																						    
+				ROLLBACK
+				DELETE FROM Boletos WHERE ID=@ID_Boleto
+			END
+		END
+		SET @cont+=1
 	END
-
-
 END
---Leo si esta bien estruturada 	GrabaMultiple y preguntar la restricion de apuesta sencilla
 	
- EXEC GrabaMultiple 2,5,6,7,8,9

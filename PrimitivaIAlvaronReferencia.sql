@@ -105,9 +105,46 @@ ALTER TABLE Combinaciones ADD CONSTRAINT CK_Combinaciones1y49 CHECK (Numero BETW
 --ROLLBACK
 COMMIT
 
+--Boleto una hora antes como mínimo
+GO
+CREATE TRIGGER AntelacionBoleto ON Boletos
+	AFTER INSERT AS
+	BEGIN
+		DECLARE @FechaSorteo SMALLDATETIME
+		DECLARE @FechaBoleto SMALLDATETIME
+		DECLARE @IDSorteoBoleto int
+		DECLARE @Abierto TINYINT
+		DECLARE @Seguir BIT = 1
+		DECLARE CursorAbierto CURSOR
+			FOR
+			SELECT Abierto,I.[Fecha/Hora],S.[Fecha/Hora]
+			FROM inserted AS I
+			INNER JOIN Sorteos AS S ON I.ID_Sorteo=S.ID
+		
+		--SELECT @FechaBoleto = [Fecha/Hora], @IDSorteoBoleto = ID_Sorteo FROM inserted
+		--SELECT @FechaSorteo = (SELECT [Fecha/Hora] AS [Fecha Sorteo] FROM Sorteos WHERE ID=@IDSorteoBoleto)
+		OPEN CursorAbierto
+		FETCH NEXT FROM CursorAbierto INTO @Abierto, @FechaBoleto, @FechaSorteo
+		WHILE @@FETCH_STATUS = 0 AND @Seguir=1
+			BEGIN
+				--Abierto 1, cerrado 0
+				/*IF(((SELECT Abierto FROM Sorteos)=0) OR ((SELECT Abierto FROM Sorteos)=1 AND (DATEDIFF(MINUTE,@FechaBoleto,@FechaSorteo)<60)))
+					BEGIN
+						ROLLBACK
+					END*/
+				IF((@Abierto=0) OR (@Abierto=1 AND (DATEDIFF(MINUTE,@FechaBoleto,@FechaSorteo)<60))) --OR ((SELECT Abierto FROM Sorteos)=1 AND (DATEDIFF(MINUTE,@FechaBoleto,@FechaSorteo)<60)))
+					BEGIN
+						ROLLBACK
+						SET @Seguir=0
+					END
+				FETCH NEXT FROM CursorAbierto INTO @Abierto, @FechaBoleto, @FechaSorteo
+			END
+	END
+	CLOSE CursorAbierto
+	DEALLOCATE CursorAbierto
 GO
 --AntelacionBoleto2
-CREATE TRIGGER AntelacionBoleto ON Boletos
+CREATE TRIGGER AntelacionBoleto2 ON Boletos
 	AFTER INSERT AS
 	BEGIN
 		DECLARE @FechaSorteo SMALLDATETIME
@@ -174,7 +211,9 @@ BEGIN
 	END
 END
 
+
 --Procedimientos almacenados
+
 --GenerarNumerosAleatorios
 GO
 CREATE PROCEDURE GenerarNumerosAleatorios
@@ -233,6 +272,8 @@ BEGIN
 	COMMIT
 	--select * from Combinaciones
 END
+EXECUTE dbo.GrabaSencilla 3,1,2,3,4,5,5
+select * from Boletos
 
 --GrabaSencillas: Lo mismo que el GrabaSencilla pero con número variable de columnas
 GO
@@ -252,6 +293,13 @@ BEGIN
 	DECLARE @Reintegro TINYINT = 0
 	BEGIN TRANSACTION
 		EXECUTE dbo.GenerarNumerosAleatorios @Reintegro OUTPUT, 1,9
+		--SELECT @IDBoleto = NEWID()
+		/*INSERT INTO Boletos
+			VALUES(@IDBoleto,CURRENT_TIMESTAMP,@IDSorteo,(1*@NumeroColumnas))*/
+		
+		--SELECT @IDBoleto = @@IDENTITY
+		
+
 		INSERT INTO Combinaciones
 			VALUES(@IDBoleto,@NumeroColumnas,@Num1,'Simple')
 			,(@IDBoleto,@NumeroColumnas,@Num2,'Simple')
@@ -259,7 +307,8 @@ BEGIN
 			,(@IDBoleto,@NumeroColumnas,@Num4,'Simple')
 			,(@IDBoleto,@NumeroColumnas,@Num5,'Simple')
 			,(@IDBoleto,@NumeroColumnas,@Num6,'Simple')
-			
+			--VALUES(@IDSorteo,@Num1,@Num2,@Num3,@Num4,@Num4,@Num5,@Num6)
+	--@@TRANCOUNT >0
 	COMMIT
 END
 
@@ -370,6 +419,13 @@ BEGIN
 			--EXECUTE dbo.GrabaSencillas @IDSorteo,@Num1,@Num2,@Num3,@Num4,@Num5,@Num6, @NumeroColumnas
 	COMMIT
 END
+GO
+EXECUTE dbo.GrabaSencillaAleatoria 2
+
+--DELETE FROM Combinaciones
+--delete from Boletos
+select * from Combinaciones
+SELECT * FROM Boletos
 
  --Implementa un procedimiento GrabaMuchasSencillas que genere n boletos con una sola apuesta sencilla utilizando
  --el procedimiento GrabaSencillaAleatoria. Datos de entrada: El sorteo y el valor de n
@@ -390,12 +446,10 @@ END
 SELECT * FROM Sorteos
 SELECT * FROM Boletos
 SELECT * FROM Combinaciones
-
 BEGIN TRANSACTION
 EXECUTE dbo.GrabaMuchasSencillas 2,10000
 ROLLBACK
 COMMIT
-
 SET DATEFORMAT ymd --formato de la fecha
 INSERT INTO [dbo].[Sorteos]
            ([Fecha/Hora]

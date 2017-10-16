@@ -3,7 +3,7 @@ GO
 USE Primitiva
 GO
 CREATE TABLE Sorteos(
-	ID int IDENTITY(1,1)
+	ID INT IDENTITY(1,1)
 	,[Fecha/Hora] SMALLDATETIME
 	,Num1 TINYINT
 	,Num2 TINYINT
@@ -19,7 +19,7 @@ GO
 CREATE TABLE Boletos(
 	ID UNIQUEIDENTIFIER
 	,[Fecha/Hora] SMALLDATETIME
-	,ID_Sorteo int
+	,ID_Sorteo INT NOT NULL
 	,Importe SMALLMONEY
 	,Reintegro TINYINT
 	,CONSTRAINT PK_Boletos PRIMARY KEY(ID)
@@ -53,36 +53,6 @@ ALTER TABLE Combinaciones ADD Tipo_Apuesta VARCHAR(8) DEFAULT 'Simple' NOT NULL
 
 --Todas las combinaciones del mismo boleto tienen que ser simples o múltiples
 GO
-CREATE TRIGGER CompruebaSencilla on Combinaciones
-after insert as
-BEGIN
-	DECLARE @IDBoleto UNIQUEIDENTIFIER
-	DECLARE @CantColumna int
-	DECLARE @Cont int=1
-	SET @CantColumna=0
-
-	--Consulta para conseguir el último boleto insertado
-	SELECT @IDBoleto=B.ID from inserted as I inner join
-	Boletos as B on I.ID_Boleto=B.ID
-
-	--Consulta para conseguir la cantidad de columnas insertadas en ese boleto
-	SELECT @CantColumna=COUNT(DISTINCT Columna) FROM Combinaciones WHERE ID_Boleto=@IDBoleto
-
-	WHILE(@Cont<=@CantColumna)
-	BEGIN
-		IF('Simple'=ANY(SELECT Tipo_Apuesta FROM Combinaciones WHERE ID_Boleto=@IDBoleto and Columna=@Cont))--Si cualquiera de las Columnas es simple pasamos a la siguiente comprobación
-		BEGIN
-			IF((SELECT COUNT(Numero) FROM Combinaciones WHERE ID_Boleto=@IDBoleto and Columna=@Cont)!=6) OR--Si la cantidad de numeros que contiene la columna
-				('Multiple'=ANY(SELECT Tipo_Apuesta FROM Combinaciones WHERE ID_Boleto=@IDBoleto and Columna=@Cont))--es distinto de 6 o cualquier columna es Multiple
-			BEGIN																						    
-				ROLLBACK
-				DELETE FROM Boletos WHERE ID=@IDBoleto
-			END
-		END
-		SET @Cont+=1
-	END
-END
-
 -- Añadimos el reintegro porque a Leo se le olvidó
 GO
 ALTER TABLE Sorteos ADD Reintegro TINYINT
@@ -105,6 +75,7 @@ ALTER TABLE Combinaciones ADD CONSTRAINT CK_Combinaciones1y49 CHECK (Numero BETW
 --ROLLBACK
 COMMIT
 
+--Boleto una hora antes como mínimo
 GO
 --AntelacionBoleto2
 CREATE TRIGGER AntelacionBoleto ON Boletos
@@ -112,7 +83,7 @@ CREATE TRIGGER AntelacionBoleto ON Boletos
 	BEGIN
 		DECLARE @FechaSorteo SMALLDATETIME
 		DECLARE @FechaBoleto SMALLDATETIME
-		DECLARE @IDSorteoBoleto int
+		DECLARE @IDSorteoBoleto INT
 		DECLARE @Abierto TINYINT
 
 		IF EXISTS(
@@ -135,7 +106,7 @@ CREATE TRIGGER NumerosNoModificables ON Combinaciones
 GO
 
 --Trigger para comprobar que las apuestas sencillas tienen seis números
-ALTER trigger compruebaSencilla on Combinaciones
+CREATE trigger CompruebaSencilla on Combinaciones
 after insert as
 BEGIN
 	declare @idBoleto UNIQUEIDENTIFIER
@@ -174,7 +145,40 @@ BEGIN
 	END
 END
 
+--Trigger para comprobar que no se repitan números en la misma columna de una apuesta
+GO
+create trigger noRepes on Combinaciones after insert--No es necesario los números nunca se repiten debido a la clave primaria compuesta
+as
+BEGIN
+	declare @repetido bit=1
+	declare @idBoleto UNIQUEIDENTIFIER
+	declare @columna int
+	declare @cantColumna int
+	declare @cont int = 1
+
+	--conseguir la cantidad de columnas insertadas
+	select @cantColumna=count(distinct columna) from inserted
+
+	--consulta para conseguir el id del boleto de la última combinación/es introducida/s
+	select @idBoleto=ID_Boleto from inserted
+
+	while(@cont<=@cantColumna and @repetido=1)
+	BEGIN
+		if((select count(distinct numero) from Combinaciones where ID_Boleto=@idBoleto and Columna=@cont)<((select count(numero) from Combinaciones where ID_Boleto=@idBoleto and Columna=@cont)))
+		BEGIN
+			--en caso de anular el boleto
+			ROLLBACK
+			delete from Boletos where ID=@idBoleto
+			set @repetido=0
+		END
+
+		set @cont+=1
+	END
+
+END
+
 --Procedimientos almacenados
+
 --GenerarNumerosAleatorios
 GO
 CREATE PROCEDURE GenerarNumerosAleatorios
@@ -201,7 +205,7 @@ boleto con una sola apuesta simple. Datos de entrada: El sorteo y los seis
 números.*/
 GO
 CREATE PROCEDURE GrabaSencilla
-	@IDSorteo int
+	@IDSorteo INT
 	,@Num1 TINYINT
 	,@Num2 TINYINT
 	,@Num3 TINYINT
@@ -238,7 +242,7 @@ END
 GO
 CREATE PROCEDURE GrabaSencillas
 	@IDBoleto UNIQUEIDENTIFIER
-	,@IDSorteo int
+	,@IDSorteo INT
 	,@Num1 TINYINT
 	,@Num2 TINYINT
 	,@Num3 TINYINT
@@ -252,6 +256,13 @@ BEGIN
 	DECLARE @Reintegro TINYINT = 0
 	BEGIN TRANSACTION
 		EXECUTE dbo.GenerarNumerosAleatorios @Reintegro OUTPUT, 1,9
+		--SELECT @IDBoleto = NEWID()
+		/*INSERT INTO Boletos
+			VALUES(@IDBoleto,CURRENT_TIMESTAMP,@IDSorteo,(1*@NumeroColumnas))*/
+		
+		--SELECT @IDBoleto = @@IDENTITY
+		
+
 		INSERT INTO Combinaciones
 			VALUES(@IDBoleto,@NumeroColumnas,@Num1,'Simple')
 			,(@IDBoleto,@NumeroColumnas,@Num2,'Simple')
@@ -259,7 +270,8 @@ BEGIN
 			,(@IDBoleto,@NumeroColumnas,@Num4,'Simple')
 			,(@IDBoleto,@NumeroColumnas,@Num5,'Simple')
 			,(@IDBoleto,@NumeroColumnas,@Num6,'Simple')
-			
+			--VALUES(@IDSorteo,@Num1,@Num2,@Num3,@Num4,@Num4,@Num5,@Num6)
+	--@@TRANCOUNT >0
 	COMMIT
 END
 
@@ -267,7 +279,7 @@ END
 GO
 CREATE PROCEDURE GrabaSencillaAleatoria
 	@NumeroColumnas TINYINT
-	,@IDSorteo int
+	,@IDSorteo INT
 AS
 BEGIN
 	DECLARE @Num1 TINYINT = 0
@@ -276,7 +288,7 @@ BEGIN
 	DECLARE @Num4 TINYINT = 0
 	DECLARE @Num5 TINYINT = 0
 	DECLARE @Num6 TINYINT = 0
-	--DECLARE @IDSorteo int
+	--DECLARE @IDSorteo INT
 	DECLARE @Reintegro TINYINT
 	DECLARE @RellenaColumna TINYINT
 	BEGIN TRANSACTION
@@ -370,16 +382,16 @@ BEGIN
 			--EXECUTE dbo.GrabaSencillas @IDSorteo,@Num1,@Num2,@Num3,@Num4,@Num5,@Num6, @NumeroColumnas
 	COMMIT
 END
-
+GO
  --Implementa un procedimiento GrabaMuchasSencillas que genere n boletos con una sola apuesta sencilla utilizando
  --el procedimiento GrabaSencillaAleatoria. Datos de entrada: El sorteo y el valor de n
 GO
-CREAte PROCEDURE GrabaMuchasSencillas
-	@IDSorteo int
+CREATE PROCEDURE GrabaMuchasSencillas
+	@IDSorteo INT
 	,@NumerodeBoletos INT
 AS
 BEGIN
-	DECLARE @Seguir int = 0 
+	DECLARE @Seguir INT = 0 
 	WHILE @Seguir < @NumerodeBoletos
 		BEGIN
 			EXECUTE dbo.GrabaSencillaAleatoria 1, @IDSorteo
@@ -387,14 +399,63 @@ BEGIN
 		END
 END
 
-SELECT * FROM Sorteos
-SELECT * FROM Boletos
-SELECT * FROM Combinaciones
+--GrabaMultiple: graba una apuesta Multiple.
+-- Datos de entrada: El id sorteo, también entre 5 y 11 números (6 es simple)
+GO
+create procedure GrabaMultiple @idSorteo int, @n1 int, @n2 int, @n3 int, @n4 int, @n5 int,
+							   @n6 int=null, @n7 int=null, @n8 int=null, @n9 int=null, @n10 int=null, @n11 int=null 
+as
+BEGIN
+	declare @IDBoleto int
+	declare @seAcabo bit
+	DECLARE @Reintegro TINYINT = 0
+	set @seAcabo=0
+	SELECT @IDBoleto = NEWID()	
+	
+	EXECUTE dbo.GenerarNumerosAleatorios @Reintegro OUTPUT, 1,9	
+	insert into Boletos (ID,[Fecha/Hora], ID_Sorteo,Reintegro) values(@IDBoleto,GETDATE(), @idSorteo,@Reintegro)
+																	
+	
 
-BEGIN TRANSACTION
-EXECUTE dbo.GrabaMuchasSencillas 2,10000
-ROLLBACK
-COMMIT
+	insert into Combinaciones values(1, @n1, 'Multiple', @IDBoleto),(1, @n2, 'Multiple', @IDBoleto),
+									(1, @n3, 'Multiple', @IDBoleto),(1, @n4, 'Multiple', @IDBoleto),
+									(1, @n5, 'Multiple', @IDBoleto)
+	
+	if(@n6 is not null)
+	BEGIN	
+		insert into Combinaciones values(1, @n6, 'Multiple', @IDBoleto)
+	END
+	if(@n7 is not null)
+	BEGIN
+		insert into Combinaciones values (1, @n7, 'Multiple', @IDBoleto)
+	END
+	else 
+	BEGIN
+		set @seAcabo=1
+		Delete from Combinaciones where ID_Boleto=@IDBoleto
+		Delete from Boletos where ID=@IDBoleto
+	END
+	if(@seAcabo!=1)
+	BEGIN
+		if(@n8 is not null)
+		BEGIN
+			insert into Combinaciones values(1, @n8, 'Multiple', @IDBoleto)
+		END
+		if(@n9 is not null)
+		BEGIN
+			insert into Combinaciones values(1, @n9, 'Multiple', @IDBoleto)
+		END
+		if(@n10 is not null)
+		BEGIN
+			insert into Combinaciones values(1, @n10, 'Multiple', @IDBoleto)
+		END
+		if(@n11 is not null)
+		BEGIN
+			insert into Combinaciones values(1, @n11, 'Multiple', @IDBoleto)
+		END
+	END
+END
+
 
 SET DATEFORMAT ymd --formato de la fecha
 INSERT INTO [dbo].[Sorteos]
@@ -421,4 +482,14 @@ INSERT INTO [dbo].[Sorteos]
            ,1)
 GO
 
+SELECT * FROM Sorteos
+SELECT * FROM Boletos
+SELECT * FROM Combinaciones
+BEGIN TRANSACTION
+EXECUTE dbo.GrabaMuchasSencillas 1,1000000
+ROLLBACK
+COMMIT
 
+
+
+--ALTER TABLE Combinaciones ALTER COLUMN Tipo_Apuesta VARCHAR(8)

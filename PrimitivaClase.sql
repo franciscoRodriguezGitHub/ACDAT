@@ -406,7 +406,7 @@ create procedure GrabaMultiple @idSorteo int, @n1 int, @n2 int, @n3 int, @n4 int
 							   @n6 int=null, @n7 int=null, @n8 int=null, @n9 int=null, @n10 int=null, @n11 int=null 
 as
 BEGIN
-	declare @IDBoleto int
+	declare @IDBoleto UNIQUEIDENTIFIER
 	declare @seAcabo bit
 	DECLARE @Reintegro TINYINT = 0
 	set @seAcabo=0
@@ -427,7 +427,7 @@ BEGIN
 	END
 	if(@n7 is not null)
 	BEGIN
-		insert into Combinaciones values (1, @n7, 'Multiple', @IDBoleto)
+		insert into Combinaciones values (@IDBoleto,1, @n7, 'Multiple')
 	END
 	else 
 	BEGIN

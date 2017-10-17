@@ -1,9 +1,9 @@
 
 -- Creo la base de dato Prmitiva
-CREATE DATABASE Primitiva
+CREATE DATABASE PrimitivaFran
 GO
 -- Accedo a la base de datos previamente creada
-USE Primitiva
+USE PrimitivaFran
 GO
 -- Creo las tablas correspondiente
 
@@ -148,7 +148,8 @@ BEGIN
 	BEGIN
 		BEGIN TRANSACTION
 			BEGIN TRY 
-				INSERT Boletos values(@FechaHoraCreacion,1,@ReintregoAleatorio,@IDSorteo)
+			--Comprobar
+				INSERT Boletos values(@FechaHoraCreacion,1*@NumApuesta,@ReintregoAleatorio,@IDSorteo)
 				SELECT @ID_Boleto=MAX(ID) FROM Boletos WHERE ID_Sorteo=@IDSorteo
 
 				WHILE(@NumApuesta>0)
@@ -264,10 +265,9 @@ BEGIN
 	DECLARE @ReintregoAleatorio TINYINT =floor(((10) * RAND()))
 	DECLARE @FechaHoraCreacion SMALLDATETIME=GETDATE()
 	DECLARE @ID_Boleto INT
-	BEGIN TRANSACTION
-		BEGIN TRY 
-		
-		INSERT Boletos values(@FechaHoraCreacion,1,@ReintregoAleatorio,@IDSorteo)
+	DECLARE @ImporteTotal Money
+	DECLARE @Mal BIT =0
+		INSERT Boletos values(@FechaHoraCreacion,0,@ReintregoAleatorio,@IDSorteo)
 		SELECT @ID_Boleto=MAX(ID) FROM Boletos WHERE ID_Sorteo=@IDSorteo
 		INSERT Combinaciones values( 1,@Num1,'Multiple', @ID_Boleto),
 										( 1,@Num2,'Multiple', @ID_Boleto),
@@ -275,38 +275,52 @@ BEGIN
 										( 1,@Num4,'Multiple', @ID_Boleto),
 										( 1,@Num5,'Multiple', @ID_Boleto)
 									
-																		
+			Set @ImporteTotal	=7														
 		IF((@Num6 IS NOT NULL) AND (@Num7 IS  NULL))
 		BEGIN
-			Delete from Combinaciones where ID_Boleto=@ID_Boleto
-			Delete from Boletos where ID=@ID_Boleto	 	
+			Set @Mal=1	
+			--Delete from Combinaciones where ID_Boleto=@ID_Boleto
+			--Delete from Boletos where ID=@ID_Boleto	
+			 	
 		END
 		ELSE IF((@Num7 IS NOT NULL) AND(@Num6 IS NOT NULL))
 		BEGIN
 			INSERT Combinaciones values( 1,@Num6,'Multiple', @ID_Boleto)
 			INSERT Combinaciones values( 1,@Num7,'Multiple', @ID_Boleto)
+			Set @ImporteTotal	=28	
 			IF(@Num8 IS NOT NULL)
 			BEGIN 
 				INSERT Combinaciones values( 1,@Num8,'Multiple', @ID_Boleto)
+				Set @ImporteTotal	=44	
 				IF(@Num9 IS NOT NULL)
 				BEGIN 
 					INSERT Combinaciones values( 1,@Num9,'Multiple', @ID_Boleto)
+					Set @ImporteTotal	=84	
 					IF(@Num10 IS NOT NULL)
 					BEGIN 
 						INSERT Combinaciones values( 1,@Num10,'Multiple', @ID_Boleto)
+						Set @ImporteTotal	=210	
 						IF(@Num11 IS NOT NULL)
 						BEGIN 
-							INSERT Combinaciones values( 1,@Num11,'Multiple', @ID_Boleto)	
+							INSERT Combinaciones values( 1,@Num11,'Multiple', @ID_Boleto)
+							Set @ImporteTotal	=462		
 						END
 					END					
 				END
 			END
 		END		
-		COMMIT	
-		END TRY
-		BEGIN CATCH
-				ROLLBACK
-		END CATCH
+	
+	IF(@Mal=1)
+	BEGIN 
+		BEGIN TRANSACTION
+		ROLLBACK
+	end
+	else
+	BEGIN 
+		update Boletos set Importe= @ImporteTotal where ID=@ID_Boleto
+		BEGIN TRANSACTION
+		Commit
+	end
 END
 
 GO

@@ -135,24 +135,11 @@ INSERT INTO [dbo].[Sorteos]
            ('2017-12-20 20:00:00',1,4,2,3,4,5,6,8,1)
 		   
 	
---INSERT de Boletos	   
-		   --Pruebas
-INSERT INTO [dbo].[Boletos]
-           ([FechaHora]
-           ,[Importe]
-           ,[Reintegro]
-           ,[ID_Sorteo])
-     VALUES
-            ('2017-12-20 18:30:00'
-           ,1
-           ,8
-           ,2)
-GO
 --Procedimiento--
 EXEC dbo.GrabaSencilla 1, 14, 15, 28, 6, 42, 6
 EXEC dbo.GrabaSencillaAleatoria 1, 9
 EXEC dbo.GrabaMuchasSencillas 1, 2 
-EXEC GrabaMultiple 1,1,2,3,4,5
+EXEC GrabaMultiple 1,1,2,3,4,5,7
 
 select * from Sorteos
 Select * from Boletos

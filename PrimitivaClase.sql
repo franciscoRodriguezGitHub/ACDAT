@@ -277,7 +277,7 @@ END
 
 --GrabaSencillaAleatoria: Genera un boleto con n apuestas sencillas, números aleatorios
 GO
-ALTER PROCEDURE GrabaSencillaAleatoria
+CREATE PROCEDURE GrabaSencillaAleatoria
 	@NumeroColumnas TINYINT
 	,@IDSorteo INT
 AS

@@ -1,0 +1,4 @@
+para ser la relacion 1:1 tenemos que poner la clave agena unique
+set @aleatorio40= floor(rand()*(49)+1
+A +B
+set @aleatorio40= floor(rand()*(B-A+1))+A

@@ -1,0 +1,10 @@
+-Inicio de sesion-SErver
+(Login)
+1
+para el servidor
+
+N
+-Usuario
+(user)  ->BD
+esto es para que base de datos tiene permiso
+es decir bd de ejemplo fran tiene permiso
